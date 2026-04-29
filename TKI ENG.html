@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Conflict Management Style – Thomas-Kilmann’s Test</title>
+<style>
+:root{--blue:#002855;--green:#cce97f;--grey:#eef1f8;--white:#ffffff;}
+body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--grey);}  
+header{position:sticky;top:0;background:var(--blue);color:var(--white);padding:10px 16px;font-weight:bold;z-index:10;}
+.container{max-width:900px;margin:0 auto;background:var(--white);min-height:85vh;padding:24px;}
+h2,h3{color:var(--blue);}  
+.progress{font-size:14px;margin-bottom:12px;color:var(--blue);}  
+.option{border:2px solid var(--blue);padding:14px;margin-bottom:12px;cursor:pointer;}
+.option.selected{background:var(--green);}  
+.nav{display:flex;gap:12px;margin-top:16px;}
+button{flex:1;padding:14px;border:none;font-size:16px;cursor:pointer;}
+.primary{background:var(--green);}  
+.secondary{background:var(--grey);}  
+.hidden{display:none;}  
+canvas{display:block;margin:24px auto;max-width:100%;}
+@media(max-width:600px){header{position:static;} .container{padding:16px;}}
+</style>
+</head>
+<body>
+<header>PRAXI – Conflict Management Style | Thomas-Kilmann’s Test</header>
+<div class="container">
+<section id="start">
+<h2>Conflict Management Style</h2>
+<p>Consider situations in which you find that your needs or desires differ from those of another person. How do you usually react in these situations?</p>
+<p>Below are several pairs of statements describing possible reactions. For each one, choose the statement that best describes your behaviour.</p>
+<p>In some cases, neither option may perfectly describe your behaviour; even so, select the response you are most likely to use.</p>
+<button class="primary" id="startBtn">Start</button>
+</section>
+
+<section id="quiz" class="hidden">
+<div class="progress" id="progress"></div>
+<h3 id="question"></h3>
+<div id="options"></div>
+<div class="nav">
+<button class="secondary" id="backBtn">Back</button>
+<button class="primary" id="nextBtn">Next</button>
+</div>
+</section>
+
+<section id="result" class="hidden">
+<h2>Your Result</h2>
+<canvas id="radar" width="600" height="420"></canvas>
+<div id="scores"></div>
+<div id="descriptions"></div>
+<button class="primary" id="downloadBtn">Download result</button>
+</section>
+</div>
+
+<script>
+// DATA
+const descriptions = {
+  competing: "You tend to approach conflict in a direct and assertive way, focusing on achieving your own goals and defending your position. Effective when quick decisions are needed, but may strain relationships if overused.",
+  collaborating: "You see conflict as an opportunity to work together and find solutions that fully satisfy all parties. This builds trust and strong relationships, but requires time and openness.",
+  compromising: "You aim to find a middle ground where each party gives up something to reach an acceptable solution. Practical and efficient, though outcomes may only partially satisfy everyone.",
+  avoiding: "You tend to delay or sidestep conflict, especially when it seems unimportant or potentially harmful. This can reduce immediate tension, but issues may remain unresolved.",
+  accommodating: "You prioritise maintaining the relationship by giving in to others’ needs. This supports harmony, but may cause frustration if your own needs are repeatedly overlooked."
+};
+
+const questions = [
+  {a:"Sometimes, I allow others to take responsibility for solving the problem.", b:"Rather than negotiating the issues we disagree on, I try to emphasise those areas where we agree.", map:{a:'avoiding',b:'accommodating'}},
+  {a:"I try to find compromise solutions.", b:"I attempt to deal with both my concerns and those of the other person.", map:{a:'compromising',b:'collaborating'}},
+  {a:"I am usually determined to reach my goals.", b:"I may try to appease the other person’s feelings and preserve the relationship.", map:{a:'competing',b:'accommodating'}},
+  {a:"I try to find compromises.", b:"Sometimes I put the other person’s wishes before my own.", map:{a:'compromising',b:'accommodating'}},
+  {a:"I actively seek the other person’s help in finding a solution.", b:"I try to do whatever I can to avoid unnecessary tension.", map:{a:'collaborating',b:'avoiding'}},
+  {a:"I try to avoid unpleasant situations for myself.", b:"I try to persuade others.", map:{a:'avoiding',b:'competing'}},
+  {a:"I attempt to postpone the issue until I have had time to think it through.", b:"I give way on some points in exchange for others.", map:{a:'avoiding',b:'compromising'}},
+  {a:"I am usually determined to reach my goals.", b:"I attempt to bring all concerns and issues out into the open immediately.", map:{a:'competing',b:'collaborating'}},
+  {a:"I feel that differences are not always worth worrying about.", b:"I make an effort to get my own way.", map:{a:'avoiding',b:'competing'}},
+  {a:"I am determined to reach my goals.", b:"I try to find compromises.", map:{a:'competing',b:'compromising'}},
+  {a:"I attempt to bring all concerns and issues out into the open immediately.", b:"I may try to calm the other person’s feelings and preserve the relationship.", map:{a:'collaborating',b:'accommodating'}},
+  {a:"Sometimes I avoid taking positions that might cause controversy.", b:"I’ll let the other person have their way on certain things, if she’ll let me.", map:{a:'avoiding',b:'compromising'}},
+  {a:"I propose a neutral ground.", b:"I put pressure on people to get what I want.", map:{a:'compromising',b:'competing'}},
+  {a:"I share my ideas with the other person and let them share theirs.", b:"I demonstrate to the other person the logic and benefits of my position.", map:{a:'collaborating',b:'competing'}},
+  {a:"I may try to soothe the other person's feelings and save the relationship.", b:"I try to do everything possible to avoid tension.", map:{a:'accommodating',b:'avoiding'}},
+  {a:"I try not to hurt the other person’s feelings.", b:"I try to convince the other person of the merits of my position.", map:{a:'accommodating',b:'competing'}},
+  {a:"I am usually determined to reach my goals.", b:"I do everything possible to avoid unnecessary tension.", map:{a:'competing',b:'avoiding'}},
+  {a:"If it makes others happy, I am prepared to let them maintain their opinion.", b:"I’ll let the other person have their way on certain things, as long as they do the same for me.", map:{a:'accommodating',b:'compromising'}},
+  {a:"I’ll try to address all the concerns right away.", b:"I try to postpone the issue until I have had time to reflect.", map:{a:'collaborating',b:'avoiding'}},
+  {a:"I immediately try to resolve the differences.", b:"I try to find a balance of gains and losses for both of us.", map:{a:'collaborating',b:'compromising'}},
+  {a:"When negotiating, I try to take the other person’s wishes into account.", b:"I always tend to have an open discussion of the problem.", map:{a:'accommodating',b:'collaborating'}},
+  {a:"I try to find a middle ground between my position and theirs.", b:"I state my wishes clearly.", map:{a:'compromising',b:'competing'}},
+  {a:"I am often concerned with satisfying all our wishes.", b:"I try to encourage the other person to reach a compromise.", map:{a:'collaborating',b:'avoiding'}},
+  {a:"If the other person feels their position is very important, I try to meet their wishes.", b:"I try to encourage the other person to reach a compromise.", map:{a:'accommodating',b:'compromising'}},
+  {a:"I try to demonstrate to the other person the logic and benefits of my position.", b:"When negotiating, I try to take the other person’s wishes into account.", map:{a:'competing',b:'accommodating'}},
+  {a:"I propose a neutral ground.", b:"I usually seek the other person’s help in finding a solution.", map:{a:'compromising',b:'collaborating'}},
+  {a:"At times I avoid taking positions that could lead to controversy.", b:"If it makes others happy, I am prepared to let them maintain their opinion.", map:{a:'avoiding',b:'accommodating'}},
+  {a:"I am usually determined to reach my goals.", b:"I usually ask someone else for help in finding a solution.", map:{a:'competing',b:'collaborating'}},
+  {a:"I propose a neutral ground.", b:"I feel that differences are not always worth worrying about.", map:{a:'compromising',b:'avoiding'}},
+  {a:"I try not to hurt the other person’s feelings.", b:"I always discuss the issue with the other person so that we can work together.", map:{a:'accommodating',b:'collaborating'}}
+];
+
+let index = 0;
+const answers = Array(30).fill(null);
+
+// ELEMENTS
+const startSection = document.getElementById('start');
+const quizSection = document.getElementById('quiz');
+const resultSection = document.getElementById('result');
+const progress = document.getElementById('progress');
+const questionEl = document.getElementById('question');
+const optionsEl = document.getElementById('options');
+
+// START
+ document.getElementById('startBtn').onclick = () => {
+  startSection.classList.add('hidden');
+  quizSection.classList.remove('hidden');
+  render(); window.scrollTo(0,0);
+};
+
+function render(){
+  progress.innerText = `Question ${index+1} of 30`;
+  questionEl.innerText = 'Choose the option that best describes your behaviour:';
+  optionsEl.innerHTML = '';
+  ['a','b'].sort(()=>Math.random()-0.5).forEach(k=>{
+    const div = document.createElement('div');
+    div.className = 'option' + (answers[index]===k ? ' selected' : '');
+    div.innerText = questions[index][k];
+    div.onclick = () => { answers[index]=k; if(index<29){ index++; render(); } else showResult(); };
+    optionsEl.appendChild(div);
+  });
+}
+
+// NAVIGATION
+ document.getElementById('backBtn').onclick = () => { if(index>0){ index--; render(); window.scrollTo(0,0);} };
+ document.getElementById('nextBtn').onclick = () => { if(answers[index]!=null){ if(index<29){ index++; render(); } else showResult(); window.scrollTo(0,0);} };
+
+function showResult(){
+  quizSection.classList.add('hidden');
+  resultSection.classList.remove('hidden');
+
+  const scores = {competing:0, collaborating:0, compromising:0, avoiding:0, accommodating:0};
+  answers.forEach((a,i)=> scores[questions[i].map[a]]++);
+
+  drawRadar(scores);
+
+  const scoresDiv = document.getElementById('scores');
+  scoresDiv.innerHTML = '<h3>Scores</h3>' + Object.keys(scores).map(s=> `<p><strong>${s}:</strong> ${scores[s]}</p>`).join('');
+
+  const max = Math.max(...Object.values(scores));
+  const dominant = Object.keys(scores).filter(s=>scores[s]===max);
+
+  const descDiv = document.getElementById('descriptions');
+  descDiv.innerHTML = `<h3>Dominant style: ${dominant.join(', ')}</h3>` + dominant.map(s=> `<p>${descriptions[s]}</p>`).join('');
+
+  window.scrollTo(0,0);
+}
+
+function drawRadar(scores){
+  const canvas = document.getElementById('radar');
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  const labels = Object.keys(scores);
+  const values = Object.values(scores);
+  const cx = canvas.width/2, cy = canvas.height/2, r = 120;
+
+  ctx.strokeStyle = '#002855';
+  for(let i=1;i<=5;i++){ ctx.beginPath(); ctx.arc(cx,cy,r*i/5,0,Math.PI*2); ctx.stroke(); }
+
+  labels.forEach((l,i)=>{ const a=(Math.PI*2/labels.length)*i-Math.PI/2; ctx.fillText(l,cx+Math.cos(a)*(r+25),cy+Math.sin(a)*(r+25)); });
+
+  ctx.beginPath();
+  values.forEach((v,i)=>{ const a=(Math.PI*2/labels.length)*i-Math.PI/2; const rr=r*(v/12); const x=cx+Math.cos(a)*rr, y=cy+Math.sin(a)*rr; i?ctx.lineTo(x,y):ctx.moveTo(x,y); });
+  ctx.closePath(); ctx.fillStyle='rgba(204,233,127,0.6)'; ctx.fill(); ctx.stroke();
+}
+
+// DOWNLOAD
+ document.getElementById('downloadBtn').onclick = () => {
+  const link = document.createElement('a');
+  link.download = 'TKI_Result.png';
+  link.href = document.getElementById('radar').toDataURL();
+  link.click();
+};
+</script>
+</body>
+</html>
